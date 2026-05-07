@@ -1,0 +1,152 @@
+# ============================================
+# Azure DevOps CI/CD Infrastructure Pipeline
+# Project 1 - IaC with Bicep
+# ============================================
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - infra/**
+      - .azure-pipelines/**
+
+pr:
+  branches:
+    include:
+      - main
+
+variables:
+  serviceConnection: 'azure-service-connection'   # Created in DevOps
+  location: 'westindia'
+  projectName: 'cicdinfra'
+
+stages:
+
+# ============================================
+# STAGE 1 - VALIDATE
+# Checks Bicep syntax, no Azure calls
+# ============================================
+- stage: Validate
+  displayName: 'Validate Bicep Templates'
+  jobs:
+  - job: ValidateBicep
+    displayName: 'Lint and Validate'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+
+    - task: AzureCLI@2
+      displayName: 'Install Bicep CLI'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          az bicep install
+          az bicep version
+
+    - task: AzureCLI@2
+      displayName: 'Bicep Lint - Check syntax'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          echo "Running Bicep linter..."
+          az bicep lint --file infra/main.bicep
+          echo "Lint passed successfully!"
+
+    - task: AzureCLI@2
+      displayName: 'Bicep Build - Compile to ARM'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          echo "Compiling Bicep to ARM template..."
+          az bicep build --file infra/main.bicep
+          echo "Compilation successful!"
+
+# ============================================
+# STAGE 2 - PLAN (What-If)
+# Shows what WILL be deployed - no actual changes
+# ============================================
+- stage: Plan
+  displayName: 'Plan - What-If Analysis'
+  dependsOn: Validate
+  condition: succeeded()
+  jobs:
+  - job: WhatIf
+    displayName: 'ARM What-If Deployment'
+    pool:
+      vmImage: 'ubuntu-latest'
+    steps:
+
+    - task: AzureCLI@2
+      displayName: 'Run What-If - Preview changes'
+      inputs:
+        azureSubscription: $(serviceConnection)
+        scriptType: bash
+        scriptLocation: inlineScript
+        inlineScript: |
+          echo "Running What-If analysis..."
+          az deployment sub what-if \
+            --name "cicd-infra-whatif-$(Build.BuildId)" \
+            --location $(location) \
+            --template-file infra/main.bicep \
+            --parameters infra/main.parameters.json \
+            --parameters environment=dev
+          echo "What-If analysis complete!"
+
+# ============================================
+# STAGE 3 - DEPLOY DEV
+# Actual deployment to dev environment
+# Runs only on main branch
+# ============================================
+- stage: DeployDev
+  displayName: 'Deploy to Dev'
+  dependsOn: Plan
+  condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+  jobs:
+  - deployment: DeployInfraDev
+    displayName: 'Deploy Infrastructure - Dev'
+    pool:
+      vmImage: 'ubuntu-latest'
+    environment: 'dev'          # Creates environment in DevOps for approvals
+    strategy:
+      runOnce:
+        deploy:
+          steps:
+
+          - checkout: self
+
+          - task: AzureCLI@2
+            displayName: 'Deploy Bicep to Azure - Dev'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "Deploying infrastructure to Dev environment..."
+                az deployment sub create \
+                  --name "cicd-infra-dev-$(Build.BuildId)" \
+                  --location $(location) \
+                  --template-file $(Build.SourcesDirectory)/infra/main.bicep \
+                  --parameters $(Build.SourcesDirectory)/infra/main.parameters.json \
+                  --parameters environment=dev \
+                  --verbose
+                echo "Dev deployment complete!"
+
+          - task: AzureCLI@2
+            displayName: 'Verify deployment - Show resources'
+            inputs:
+              azureSubscription: $(serviceConnection)
+              scriptType: bash
+              scriptLocation: inlineScript
+              inlineScript: |
+                echo "Verifying deployed resources..."
+                az resource list \
+                  --resource-group "rg-cicdinfra-dev" \
+                  --output table
