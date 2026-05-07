@@ -34,7 +34,7 @@ stages:
   - job: ValidateBicep
     displayName: 'Lint and Validate'
     pool:
-      name:Default
+      name: Default
     steps:
 
     - task: AzureCLI@2
@@ -81,7 +81,7 @@ stages:
   - job: WhatIf
     displayName: 'ARM What-If Deployment'
     pool:
-      name:Default
+      name: Default
     steps:
 
     - task: AzureCLI@2
@@ -113,7 +113,7 @@ stages:
   - deployment: DeployInfraDev
     displayName: 'Deploy Infrastructure - Dev'
     pool:
-      name:Default
+      name: Default
     environment: 'dev'          # Creates environment in DevOps for approvals
     strategy:
       runOnce:
