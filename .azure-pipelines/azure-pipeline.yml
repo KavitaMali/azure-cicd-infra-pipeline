@@ -34,7 +34,7 @@ stages:
   - job: ValidateBicep
     displayName: 'Lint and Validate'
     pool:
-      vmImage: 'ubuntu-latest'
+      name:Default
     steps:
 
     - task: AzureCLI@2
@@ -81,7 +81,7 @@ stages:
   - job: WhatIf
     displayName: 'ARM What-If Deployment'
     pool:
-      vmImage: 'ubuntu-latest'
+      name:Default
     steps:
 
     - task: AzureCLI@2
@@ -113,7 +113,7 @@ stages:
   - deployment: DeployInfraDev
     displayName: 'Deploy Infrastructure - Dev'
     pool:
-      vmImage: 'ubuntu-latest'
+      name:Default
     environment: 'dev'          # Creates environment in DevOps for approvals
     strategy:
       runOnce:
