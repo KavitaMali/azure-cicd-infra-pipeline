@@ -44,19 +44,7 @@ module storage './modules/storage.bicep' = {
   }
 }
 
-// ---- App Service Plan Module ----
-module appServicePlan './modules/appserviceplan.bicep' = {
-  name: 'appServicePlanDeployment'
-  scope: rg
-  params: {
-    environment: environment
-    location: location
-    projectName: projectName
-    tags: tags
-  }
-}
 
 // ---- Outputs ----
 output resourceGroupName string = rg.name
 output storageAccountName string = storage.outputs.storageAccountName
-output appServicePlanName string = appServicePlan.outputs.appServicePlanName
