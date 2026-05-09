@@ -11,7 +11,7 @@ targetScope = 'subscription'
 param environment string = 'dev'
 
 @description('Azure region for all resources')
-param location string = 'westindia'
+param location string = 'eastus'
 
 @description('Project name used in resource naming')
 param projectName string = 'cicdinfra'

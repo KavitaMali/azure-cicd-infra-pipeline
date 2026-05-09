@@ -14,7 +14,7 @@ pr:
 
 variables:
   serviceConnection: 'azure-service-connection'
-  location: 'westindia'
+  location: 'eastus'
   projectName: 'cicdinfra'
 
 stages:
